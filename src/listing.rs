@@ -2,18 +2,8 @@ use serde::Deserialize;
 use serde::de::Deserializer;
 
 #[derive(Deserialize, Debug)]
-#[serde(tag = "kind", content = "data")]
-pub enum Thing {
-    #[serde(rename = "t1")]
-    Comment(Comment),
-    #[serde(rename = "t3")]
-    Link(Link)
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(tag = "kind", content = "data")]
-pub enum Listing {
-    Listing { children: Vec<Thing> }
+pub struct Container<T> {
+    pub data: T
 }
 
 #[derive(Deserialize, Debug)]
@@ -26,18 +16,26 @@ pub struct Link {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct Listing<T> {
+    pub after: Option<String>,
+    pub children: Vec<T>
+}
+
+#[derive(Deserialize, Debug)]
 pub struct Comment {
     pub id: String,
     pub body: String,
     #[serde(deserialize_with="parse_listing")]
-    pub replies: Listing
+    pub replies: Option<Container<Listing<Container<Comment>>>>
 }
 
-fn parse_listing<'de, D>(d: D) -> Result<Listing, D::Error>
+fn parse_listing<'de, D>(d: D) -> Result<Option<Container<Listing<Container<Comment>>>>, D::Error>
     where D: Deserializer<'de>
 {
     match Deserialize::deserialize(d) {
-        Ok(listing) => Ok(listing),
-        _ => Ok(Listing::Listing {children: vec![]})
+        Ok(listing) => Ok(Some(listing)),
+        Err(e) => {
+            Ok(None)
+        }
     }
 }
