@@ -1,5 +1,4 @@
 extern crate reqwest;
-extern crate dotenv;
 extern crate serde;
 extern crate serde_json;
 
@@ -42,13 +41,7 @@ pub struct AuthData {
     pub scope: String
 }
 
-pub fn authorize() -> Result<AuthData, Error> {
-    let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
-    let reddit_username = dotenv::var("REDDIT_USERNAME").unwrap();
-    let reddit_password = dotenv::var("REDDIT_PASSWORD").unwrap();
-    let reddit_client_id = dotenv::var("REDDIT_CLIENT_ID").unwrap();
-    let reddit_client_secret = dotenv::var("REDDIT_CLIENT_SECRET").unwrap();
-
+pub fn authorize(reddit_username: &str, reddit_password: &str, reddit_client_id: &str, reddit_client_secret: &str, reddit_user_agent: &str) -> Result<AuthData, Error> {
     let mut map = HashMap::new();
     map.insert("grant_type", "password");
     map.insert("username", &reddit_username);
@@ -56,7 +49,7 @@ pub fn authorize() -> Result<AuthData, Error> {
 
     let client = reqwest::Client::new();
     match client.post("https://www.reddit.com/api/v1/access_token")
-        .header(UserAgent::new(reddit_user_agent))
+        .header(UserAgent::new(reddit_user_agent.to_owned()))
         .header(ContentType::form_url_encoded())
         .basic_auth(reddit_client_id, Some(reddit_client_secret))
         .form(&map)
@@ -67,28 +60,10 @@ pub fn authorize() -> Result<AuthData, Error> {
     }
 }
 
-pub fn me(token: &str) -> Result<String, Error> {
-    let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
-    let client = reqwest::Client::new();
-    match client.get("https://oauth.reddit.com/api/v1/me")
-        .header(UserAgent::new(reddit_user_agent))
-        .header(Authorization(
-            Bearer {
-                token: token.to_owned()
-            }
-        ))
-        .send()?
-        .text() {
-        Ok(me) => Ok(me),
-        Err(e) => Err(e.into())
-    }
-}
-
-pub fn new(token: &str, subreddit: &str, limit: usize) -> Result<Vec<Link>, Error> {
-    let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
+pub fn new(token: &str, reddit_user_agent: &str, subreddit: &str, limit: usize) -> Result<Vec<Link>, Error> {
     let client = reqwest::Client::new();
     let result : Result<Container<Listing<Container<Link>>>, reqwest::Error> = client.get(&("https://oauth.reddit.com/r/".to_owned() + subreddit + "/new?limit="+&limit.to_string()))
-        .header(UserAgent::new(reddit_user_agent))
+        .header(UserAgent::new(reddit_user_agent.to_owned()))
         .header(Authorization(
             Bearer {
                 token: token.to_owned()
@@ -118,11 +93,10 @@ fn format_comments(comments: Option<Container<Listing<Container<CommentFullRepli
 
 }
 
-pub fn comments(token: &str, subreddit: &str, id: &str) -> Result<Vec<Comment>, Error> {
-    let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
+pub fn comments(token: &str, reddit_user_agent: &str, subreddit: &str, id: &str) -> Result<Vec<Comment>, Error> {
     let client = reqwest::Client::new();
     let result : Result<serde_json::Value, reqwest::Error> = client.get(&("https://oauth.reddit.com/r/".to_owned() + subreddit + "/comments/" + id + "?depth=100000&limit=1000000&showmore=false"))
-        .header(UserAgent::new(reddit_user_agent))
+        .header(UserAgent::new(reddit_user_agent.to_owned()))
         .header(Authorization(
             Bearer {
                 token: token.to_owned()
