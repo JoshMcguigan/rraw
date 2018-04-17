@@ -84,10 +84,10 @@ pub fn me(token: &str) -> Result<String, Error> {
     }
 }
 
-pub fn new(token: &str, subreddit: &str) -> Result<Vec<Link>, Error> {
+pub fn new(token: &str, subreddit: &str, limit: usize) -> Result<Vec<Link>, Error> {
     let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
     let client = reqwest::Client::new();
-    let result : Result<Container<Listing<Container<Link>>>, reqwest::Error> = client.get(&("https://oauth.reddit.com/r/".to_owned() + subreddit + "/new?limit=20"))
+    let result : Result<Container<Listing<Container<Link>>>, reqwest::Error> = client.get(&("https://oauth.reddit.com/r/".to_owned() + subreddit + "/new?limit="+&limit.to_string()))
         .header(UserAgent::new(reddit_user_agent))
         .header(Authorization(
             Bearer {
