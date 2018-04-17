@@ -22,19 +22,26 @@ pub struct Listing<T> {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct Comment {
+pub struct CommentFullRepliesStructure {
     pub id: String,
     pub body: String,
     #[serde(deserialize_with="parse_listing")]
-    pub replies: Option<Container<Listing<Container<Comment>>>>
+    pub replies: Option<Container<Listing<Container<CommentFullRepliesStructure>>>>
 }
 
-fn parse_listing<'de, D>(d: D) -> Result<Option<Container<Listing<Container<Comment>>>>, D::Error>
+#[derive(Debug)]
+pub struct Comment {
+    pub id: String,
+    pub body: String,
+    pub replies: Vec<Comment>
+}
+
+fn parse_listing<'de, D>(d: D) -> Result<Option<Container<Listing<Container<CommentFullRepliesStructure>>>>, D::Error>
     where D: Deserializer<'de>
 {
     match Deserialize::deserialize(d) {
         Ok(listing) => Ok(Some(listing)),
-        Err(e) => {
+        Err(_) => {
             Ok(None)
         }
     }

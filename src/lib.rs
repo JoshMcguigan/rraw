@@ -12,8 +12,8 @@ use listing::Link;
 
 use std::collections::HashMap;
 use reqwest::header::{UserAgent, ContentType, Authorization, Bearer};
-use serde_json::Value;
 use listing::Container;
+use listing::CommentFullRepliesStructure;
 use listing::Comment;
 
 #[derive(Debug)]
@@ -87,7 +87,7 @@ pub fn me(token: &str) -> Result<String, Error> {
 pub fn new(token: &str, subreddit: &str) -> Result<Vec<Link>, Error> {
     let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
     let client = reqwest::Client::new();
-    let result : Result<Container<Listing<Container<Link>>>, reqwest::Error> = client.get(&("https://oauth.reddit.com/r/".to_owned() + subreddit + "/hot?limit=5"))
+    let result : Result<Container<Listing<Container<Link>>>, reqwest::Error> = client.get(&("https://oauth.reddit.com/r/".to_owned() + subreddit + "/new?limit=20"))
         .header(UserAgent::new(reddit_user_agent))
         .header(Authorization(
             Bearer {
@@ -105,6 +105,19 @@ pub fn new(token: &str, subreddit: &str) -> Result<Vec<Link>, Error> {
     }
 }
 
+fn format_comments(comments: Option<Container<Listing<Container<CommentFullRepliesStructure>>>>) -> Vec<Comment> {
+    match comments {
+        Some(comments) => {
+            comments.data.children.into_iter().map(
+                |comment_container|
+                    Comment {id: comment_container.data.id, body: comment_container.data.body, replies: format_comments(comment_container.data.replies)}
+            ).collect()
+        },
+        None => vec![]
+    }
+
+}
+
 pub fn comments(token: &str, subreddit: &str, id: &str) -> Result<Vec<Comment>, Error> {
     let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
     let client = reqwest::Client::new();
@@ -120,8 +133,8 @@ pub fn comments(token: &str, subreddit: &str, id: &str) -> Result<Vec<Comment>, 
 
     match result {
         Ok(value) => {
-            let comments : Vec<Container<Comment>> = serde_json::from_value(value[1]["data"]["children"].clone())?;
-            Ok(comments.into_iter().map(|comment_container| comment_container.data ).collect())
+            let comments : Option<Container<Listing<Container<CommentFullRepliesStructure>>>> = Some(serde_json::from_value(value[1].clone())?);
+            Ok(format_comments(comments))
         },
         Err(e) => Err(Error::Network(e))
     }
