@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use serde::de::Deserializer;
 
+extern crate serde;
+
 #[derive(Deserialize, Debug)]
 pub struct Container<T> {
     pub data: T
@@ -12,7 +14,8 @@ pub struct Link {
     pub id: String,
     pub title: String,
     pub subreddit: String,
-    pub num_comments: u32
+    pub num_comments: u32,
+    pub created_utc: f64
 }
 
 #[derive(Deserialize, Debug)]
