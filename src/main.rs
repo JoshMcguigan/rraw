@@ -5,6 +5,7 @@ extern crate dotenv;
 use rraw::authorize;
 use rraw::new;
 use rraw::comments;
+use rraw::reply;
 
 
 fn main() {
@@ -16,8 +17,8 @@ fn main() {
 
     match authorize(&reddit_username, &reddit_password, &reddit_client_id, &reddit_client_secret, &reddit_user_agent) {
         Ok(auth_data) => {
-            let subreddit = "programming";
-            match new(&auth_data.access_token, &reddit_user_agent, subreddit, 10) {
+            let subreddit = "test";
+            match new(&auth_data.access_token, &reddit_user_agent, subreddit, 2) {
                 Ok(links) => {
                     for link in links.iter() {
                         println!("{:?}", link.title);
@@ -25,7 +26,9 @@ fn main() {
                     }
                 },
                 Err(e) => println!("error = {:?}", e)
-            }
+            };
+//            reply(&auth_data.access_token, &reddit_user_agent, "t1_dxljavh", "testing");
+
         },
         Err(e) => println!("error = {:?}", e)
     };

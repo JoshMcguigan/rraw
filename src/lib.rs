@@ -10,10 +10,13 @@ use listing::Listing;
 use listing::Link;
 
 use std::collections::HashMap;
-use reqwest::header::{UserAgent, ContentType, Authorization, Bearer};
+use reqwest::header::{UserAgent, ContentType, Authorization, Bearer, Encoding};
 use listing::Container;
 use listing::CommentFullRepliesStructure;
 use listing::Comment;
+use reqwest::header::ContentLength;
+use reqwest::header::TransferEncoding;
+use reqwest::header;
 
 #[derive(Debug)]
 pub enum Error {
@@ -113,3 +116,22 @@ pub fn comments(token: &str, reddit_user_agent: &str, subreddit: &str, id: &str)
         Err(e) => Err(Error::Network(e))
     }
 }
+
+    pub fn reply(token: &str, reddit_user_agent: &str, parent_id: &str, body: &str) {
+        let client = reqwest::Client::new();
+        let params = [("thing_id", parent_id), ("text", body)];
+        let url = "https://oauth.reddit.com/api/comment";
+        let res = client.post(url)
+            .header(UserAgent::new(reddit_user_agent.to_owned()))
+            .header(Authorization(
+                Bearer {
+                    token: token.to_owned()
+                }
+            ))
+            .header(ContentType::form_url_encoded())
+            .form(&params)
+            .send();
+
+        println!("{:#?}", res);
+
+    }
