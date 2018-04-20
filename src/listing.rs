@@ -12,6 +12,7 @@ pub struct Container<T> {
 pub struct Link {
     pub url: String,
     pub id: String,
+    pub name: String, // full unique identifier
     pub title: String,
     pub subreddit: String,
     pub num_comments: u32,
