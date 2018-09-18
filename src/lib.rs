@@ -73,27 +73,21 @@ impl Client {
         limit: usize,
     ) -> Result<Vec<Link>, Error> {
         let client = reqwest::Client::new();
-        let result: Result<Container<Listing<Container<Link>>>, reqwest::Error> = client
-            .get(
-                &("https://oauth.reddit.com/r/".to_owned()
-                    + subreddit
-                    + "/new?limit="
-                    + &limit.to_string()),
-            ).header(UserAgent::new(self.user_agent.clone()))
+        let container: Container<Listing<Container<Link>>> = client
+            .get(&format!("https://oauth.reddit.com/r/{}/new?limit={}", subreddit, limit))
+            .header(UserAgent::new(self.user_agent.clone()))
             .header(Authorization(Bearer {
                 token: self.auth_data.access_token.clone(),
-            })).send()?
-            .json();
+            }))
+            .send()?
+            .json()?;
 
-        match result {
-            Ok(container) => Ok(container
-                .data
-                .children
-                .into_iter()
-                .map(|link_container: Container<Link>| link_container.data)
-                .collect()),
-            Err(e) => Err(Error::Network(e)),
-        }
+        Ok(container
+            .data
+            .children
+            .into_iter()
+            .map(|link_container: Container<Link>| link_container.data)
+            .collect())
     }
 
     pub fn comments(
@@ -102,35 +96,26 @@ impl Client {
         id: &str,
     ) -> Result<Vec<Comment>, Error> {
         let client = reqwest::Client::new();
-        let result: Result<serde_json::Value, reqwest::Error> = client
+        let json: serde_json::Value = client
             .get(
-                &("https://oauth.reddit.com/r/".to_owned()
-                    + subreddit
-                    + "/comments/"
-                    + id
-                    + "?depth=100000&limit=1000000&showmore=false"),
-            ).header(UserAgent::new(self.user_agent.clone()))
+                &format!("https://oauth.reddit.com/r/{}/comments/{}?depth=100000&limit=1000000&showmore=false", subreddit, id))
+            .header(UserAgent::new(self.user_agent.clone()))
             .header(Authorization(Bearer {
                 token: self.auth_data.access_token.clone(),
             })).send()?
-            .json();
+            .json()?;
 
-        match result {
-            Ok(value) => {
-                let comments: Option<
-                    Container<Listing<Container<CommentFullRepliesStructure>>>,
-                > = Some(serde_json::from_value(value[1].clone())?);
-                Ok(format_comments(comments))
-            }
-            Err(e) => Err(Error::Network(e)),
-        }
+        let comments: Option<Container<Listing<Container<CommentFullRepliesStructure>>>> =
+            Some(serde_json::from_value(json[1].clone())?);
+
+        Ok(format_comments(comments))
     }
 
     pub fn reply(&self, parent_id: &str, body: &str) {
         let client = reqwest::Client::new();
         let params = [("thing_id", parent_id), ("text", body)];
         let url = "https://oauth.reddit.com/api/comment";
-        let res = client
+        let _res = client
             .post(url)
             .header(UserAgent::new(self.user_agent.clone()))
             .header(Authorization(Bearer {
@@ -138,6 +123,8 @@ impl Client {
             })).header(ContentType::form_url_encoded())
             .form(&params)
             .send();
+
+        // todo return result here
     }
 }
 
