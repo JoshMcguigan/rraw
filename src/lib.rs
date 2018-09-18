@@ -10,13 +10,10 @@ use listing::Listing;
 use listing::Link;
 
 use std::collections::HashMap;
-use reqwest::header::{UserAgent, ContentType, Authorization, Bearer, Encoding};
+use reqwest::header::{UserAgent, ContentType, Authorization, Bearer};
 use listing::Container;
 use listing::CommentFullRepliesStructure;
 use listing::Comment;
-use reqwest::header::ContentLength;
-use reqwest::header::TransferEncoding;
-use reqwest::header;
 
 #[derive(Debug)]
 pub enum Error {
