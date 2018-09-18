@@ -5,8 +5,6 @@ extern crate dotenv;
 use rraw::authorize;
 use rraw::new;
 use rraw::comments;
-use rraw::reply;
-
 
 fn main() {
     let reddit_user_agent = dotenv::var("REDDIT_USER_AGENT").unwrap();
@@ -27,8 +25,6 @@ fn main() {
                 },
                 Err(e) => println!("error = {:?}", e)
             };
-//            reply(&auth_data.access_token, &reddit_user_agent, "t1_dxljavh", "testing");
-
         },
         Err(e) => println!("error = {:?}", e)
     };
