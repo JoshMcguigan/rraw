@@ -14,6 +14,8 @@ use listing::CommentFullRepliesStructure;
 use listing::Container;
 use reqwest::header::{Authorization, Bearer, ContentType, UserAgent};
 use std::collections::HashMap;
+use reqwest::RequestBuilder;
+use serde::Serialize;
 
 #[derive(Debug)]
 pub enum Error {
@@ -42,6 +44,7 @@ pub struct AuthData {
 }
 
 pub struct Client {
+    http_client: reqwest::Client,
     user_agent: String,
     auth_data: AuthData,
 }
@@ -62,7 +65,13 @@ impl Client {
             reddit_client_secret,
             reddit_user_agent
         ) {
-            Ok(auth_data) => Ok(Client{ user_agent: reddit_user_agent.to_owned(), auth_data }),
+            Ok(auth_data) => Ok(
+                Client {
+                    http_client: reqwest::Client::new(),
+                    user_agent: reddit_user_agent.to_owned(),
+                    auth_data
+                }
+            ),
             Err(e) => Err(e.into())
         }
     }
@@ -72,13 +81,8 @@ impl Client {
         subreddit: &str,
         limit: usize,
     ) -> Result<Vec<Link>, Error> {
-        let client = reqwest::Client::new();
-        let container: Container<Listing<Container<Link>>> = client
-            .get(&format!("https://oauth.reddit.com/r/{}/new?limit={}", subreddit, limit))
-            .header(UserAgent::new(self.user_agent.clone()))
-            .header(Authorization(Bearer {
-                token: self.auth_data.access_token.clone(),
-            }))
+        let container: Container<Listing<Container<Link>>> = self
+            .http_get(&format!("https://oauth.reddit.com/r/{}/new?limit={}", subreddit, limit))
             .send()?
             .json()?;
 
@@ -95,14 +99,9 @@ impl Client {
         subreddit: &str,
         id: &str,
     ) -> Result<Vec<Comment>, Error> {
-        let client = reqwest::Client::new();
-        let json: serde_json::Value = client
-            .get(
-                &format!("https://oauth.reddit.com/r/{}/comments/{}?depth=100000&limit=1000000&showmore=false", subreddit, id))
-            .header(UserAgent::new(self.user_agent.clone()))
-            .header(Authorization(Bearer {
-                token: self.auth_data.access_token.clone(),
-            })).send()?
+        let json: serde_json::Value = self
+            .http_get(&format!("https://oauth.reddit.com/r/{}/comments/{}?depth=100000&limit=1000000&showmore=false", subreddit, id))
+            .send()?
             .json()?;
 
         let comments: Option<Container<Listing<Container<CommentFullRepliesStructure>>>> =
@@ -112,19 +111,38 @@ impl Client {
     }
 
     pub fn reply(&self, parent_id: &str, body: &str) {
-        let client = reqwest::Client::new();
+        // todo add test for this
         let params = [("thing_id", parent_id), ("text", body)];
         let url = "https://oauth.reddit.com/api/comment";
-        let _res = client
-            .post(url)
-            .header(UserAgent::new(self.user_agent.clone()))
-            .header(Authorization(Bearer {
-                token: self.auth_data.access_token.clone(),
-            })).header(ContentType::form_url_encoded())
-            .form(&params)
+        let _res = self
+            .http_post(url, &params)
             .send();
 
         // todo return result here
+    }
+
+    fn http_get(&self, url: &str) -> RequestBuilder {
+        let mut request_builder = self.http_client.get(url);
+        request_builder
+            .header(UserAgent::new(self.user_agent.clone()))
+            .header(Authorization(Bearer {
+                token: self.auth_data.access_token.clone(),
+            }));
+
+        request_builder
+    }
+
+    fn http_post<T: Serialize + ?Sized>(&self, url: &str, form_data: &T) -> RequestBuilder {
+        let mut request_builder = self.http_client.post(url);
+        request_builder
+            .header(UserAgent::new(self.user_agent.clone()))
+            .header(Authorization(Bearer {
+                token: self.auth_data.access_token.clone(),
+            }))
+            .header(ContentType::form_url_encoded())
+            .form(form_data);
+
+        request_builder
     }
 }
 
