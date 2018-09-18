@@ -41,7 +41,107 @@ pub struct AuthData {
     pub scope: String,
 }
 
-pub fn authorize(
+pub struct Client {
+    user_agent: String,
+    auth_data: AuthData,
+}
+
+impl Client {
+
+    pub fn try_new(
+        reddit_username: &str,
+        reddit_password: &str,
+        reddit_client_id: &str,
+        reddit_client_secret: &str,
+        reddit_user_agent: &str,
+    ) -> Result<Self, Error> {
+        match authorize(
+            reddit_username,
+            reddit_password,
+            reddit_client_id,
+            reddit_client_secret,
+            reddit_user_agent
+        ) {
+            Ok(auth_data) => Ok(Client{ user_agent: reddit_user_agent.to_owned(), auth_data }),
+            Err(e) => Err(e.into())
+        }
+    }
+
+    pub fn new(
+        &self,
+        subreddit: &str,
+        limit: usize,
+    ) -> Result<Vec<Link>, Error> {
+        let client = reqwest::Client::new();
+        let result: Result<Container<Listing<Container<Link>>>, reqwest::Error> = client
+            .get(
+                &("https://oauth.reddit.com/r/".to_owned()
+                    + subreddit
+                    + "/new?limit="
+                    + &limit.to_string()),
+            ).header(UserAgent::new(self.user_agent.clone()))
+            .header(Authorization(Bearer {
+                token: self.auth_data.access_token.clone(),
+            })).send()?
+            .json();
+
+        match result {
+            Ok(container) => Ok(container
+                .data
+                .children
+                .into_iter()
+                .map(|link_container: Container<Link>| link_container.data)
+                .collect()),
+            Err(e) => Err(Error::Network(e)),
+        }
+    }
+
+    pub fn comments(
+        &self,
+        subreddit: &str,
+        id: &str,
+    ) -> Result<Vec<Comment>, Error> {
+        let client = reqwest::Client::new();
+        let result: Result<serde_json::Value, reqwest::Error> = client
+            .get(
+                &("https://oauth.reddit.com/r/".to_owned()
+                    + subreddit
+                    + "/comments/"
+                    + id
+                    + "?depth=100000&limit=1000000&showmore=false"),
+            ).header(UserAgent::new(self.user_agent.clone()))
+            .header(Authorization(Bearer {
+                token: self.auth_data.access_token.clone(),
+            })).send()?
+            .json();
+
+        match result {
+            Ok(value) => {
+                let comments: Option<
+                    Container<Listing<Container<CommentFullRepliesStructure>>>,
+                > = Some(serde_json::from_value(value[1].clone())?);
+                Ok(format_comments(comments))
+            }
+            Err(e) => Err(Error::Network(e)),
+        }
+    }
+
+    pub fn reply(&self, parent_id: &str, body: &str) {
+        let client = reqwest::Client::new();
+        let params = [("thing_id", parent_id), ("text", body)];
+        let url = "https://oauth.reddit.com/api/comment";
+        let res = client
+            .post(url)
+            .header(UserAgent::new(self.user_agent.clone()))
+            .header(Authorization(Bearer {
+                token: self.auth_data.access_token.clone(),
+            })).header(ContentType::form_url_encoded())
+            .form(&params)
+            .send();
+    }
+}
+
+fn authorize(
     reddit_username: &str,
     reddit_password: &str,
     reddit_client_id: &str,
@@ -68,36 +168,6 @@ pub fn authorize(
     }
 }
 
-pub fn new(
-    token: &str,
-    reddit_user_agent: &str,
-    subreddit: &str,
-    limit: usize,
-) -> Result<Vec<Link>, Error> {
-    let client = reqwest::Client::new();
-    let result: Result<Container<Listing<Container<Link>>>, reqwest::Error> = client
-        .get(
-            &("https://oauth.reddit.com/r/".to_owned()
-                + subreddit
-                + "/new?limit="
-                + &limit.to_string()),
-        ).header(UserAgent::new(reddit_user_agent.to_owned()))
-        .header(Authorization(Bearer {
-            token: token.to_owned(),
-        })).send()?
-        .json();
-
-    match result {
-        Ok(container) => Ok(container
-            .data
-            .children
-            .into_iter()
-            .map(|link_container: Container<Link>| link_container.data)
-            .collect()),
-        Err(e) => Err(Error::Network(e)),
-    }
-}
-
 fn format_comments(
     comments: Option<Container<Listing<Container<CommentFullRepliesStructure>>>>,
 ) -> Vec<Comment> {
@@ -113,51 +183,4 @@ fn format_comments(
             }).collect(),
         None => vec![],
     }
-}
-
-pub fn comments(
-    token: &str,
-    reddit_user_agent: &str,
-    subreddit: &str,
-    id: &str,
-) -> Result<Vec<Comment>, Error> {
-    let client = reqwest::Client::new();
-    let result: Result<serde_json::Value, reqwest::Error> = client
-        .get(
-            &("https://oauth.reddit.com/r/".to_owned()
-                + subreddit
-                + "/comments/"
-                + id
-                + "?depth=100000&limit=1000000&showmore=false"),
-        ).header(UserAgent::new(reddit_user_agent.to_owned()))
-        .header(Authorization(Bearer {
-            token: token.to_owned(),
-        })).send()?
-        .json();
-
-    match result {
-        Ok(value) => {
-            let comments: Option<
-                Container<Listing<Container<CommentFullRepliesStructure>>>,
-            > = Some(serde_json::from_value(value[1].clone())?);
-            Ok(format_comments(comments))
-        }
-        Err(e) => Err(Error::Network(e)),
-    }
-}
-
-pub fn reply(token: &str, reddit_user_agent: &str, parent_id: &str, body: &str) {
-    let client = reqwest::Client::new();
-    let params = [("thing_id", parent_id), ("text", body)];
-    let url = "https://oauth.reddit.com/api/comment";
-    let res = client
-        .post(url)
-        .header(UserAgent::new(reddit_user_agent.to_owned()))
-        .header(Authorization(Bearer {
-            token: token.to_owned(),
-        })).header(ContentType::form_url_encoded())
-        .form(&params)
-        .send();
-
-    println!("{:#?}", res);
 }
