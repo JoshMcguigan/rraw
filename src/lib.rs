@@ -9,6 +9,8 @@ pub mod listing;
 use listing::Link;
 use listing::Listing;
 
+mod response;
+
 use listing::Comment;
 use listing::CommentFullRepliesStructure;
 use listing::Container;
@@ -16,6 +18,7 @@ use reqwest::header::{Authorization, Bearer, ContentType, UserAgent};
 use std::collections::HashMap;
 use reqwest::RequestBuilder;
 use serde::Serialize;
+use std::io::Read;
 
 // todo settle on naming standard for all methods
 // todo separate into files based on api organization?
@@ -114,26 +117,30 @@ impl Client {
         Ok(format_comments(comments))
     }
 
-    pub fn reply(&self, parent_id: &str, body: &str) {
+    pub fn reply(&self, parent_id: &str, body: &str) -> Result<(), Error> {
         // todo add test for this
         let params = [("thing_id", parent_id), ("text", body)];
         let url = "https://oauth.reddit.com/api/comment";
-        let _res = self
+        self
             .http_post(url, &params)
-            .send();
+            .send()?;
 
-        // todo return result here
+        Ok(())
     }
 
-    pub fn submit(&self, subreddit: &str, kind: &str, title: &str, text: &str) {
+    pub fn submit(&self, subreddit: &str, kind: &str, title: &str, text: &str) -> Result<(), Error> {
         // todo add test for this
-        let params = [("sr", subreddit), ("kind", kind), ("title", title), ("text", text), ("extension", "json")];
+        let params = [("sr", subreddit), ("kind", kind), ("title", title), ("text", text), ("api_type", "json")];
         let url = "https://oauth.reddit.com/api/submit";
-        let res = self
+        let mut res = self
             .http_post(url, &params)
-            .send();
+            .send()?;
 
-        // todo return result here
+        let mut body = String::new();
+        res.read_to_string(&mut body);
+        println!("{}", body);
+
+        Ok(())
     }
 
     fn http_get(&self, url: &str) -> RequestBuilder {

@@ -1,6 +1,10 @@
 extern crate rraw;
 extern crate dotenv;
 
+use std::time::SystemTime;
+
+// NOTE: new accounts are only allowed to post once per 10 minutes, so these tests could fail if run repeatedly
+
 #[test]
 fn try_new_error() {
     let reddit_client = rraw::Client::try_new(
@@ -31,11 +35,20 @@ fn test() -> Result<(), rraw::Error> {
     )?;
 
     let subreddit = "test";
-    reddit_client.submit(subreddit, "self", "testing rraw", "testing body");
-    let links = reddit_client.new(subreddit, 2)?;
-    for link in links.iter() {
-        let _comments = reddit_client.comments(subreddit, &link.id)?;
-    }
+    let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    let post_title = format!("Testing RRAW - {:?}", timestamp);
+    let post_body = format!("Post body - {:?}", timestamp);
+
+    reddit_client.submit(subreddit, "self", &post_title, &post_body)?;
+    let mut links = reddit_client.new(subreddit, 1)?;
+
+    let test_post = links.pop().unwrap();
+
+    assert_eq!(test_post.title, post_title);
+
+//    for link in links.iter() {
+//        let _comments = reddit_client.comments(subreddit, &link.id)?;
+//    }
 
     Ok(())
 }
