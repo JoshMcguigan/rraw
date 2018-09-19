@@ -31,6 +31,7 @@ fn test() -> Result<(), rraw::Error> {
     )?;
 
     let subreddit = "test";
+    reddit_client.submit(subreddit, "self", "testing rraw", "testing body");
     let links = reddit_client.new(subreddit, 2)?;
     for link in links.iter() {
         let _comments = reddit_client.comments(subreddit, &link.id)?;

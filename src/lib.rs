@@ -17,6 +17,10 @@ use std::collections::HashMap;
 use reqwest::RequestBuilder;
 use serde::Serialize;
 
+// todo settle on naming standard for all methods
+// todo separate into files based on api organization?
+// todo reduce string typing
+
 #[derive(Debug)]
 pub enum Error {
     Network(reqwest::Error),
@@ -115,6 +119,17 @@ impl Client {
         let params = [("thing_id", parent_id), ("text", body)];
         let url = "https://oauth.reddit.com/api/comment";
         let _res = self
+            .http_post(url, &params)
+            .send();
+
+        // todo return result here
+    }
+
+    pub fn submit(&self, subreddit: &str, kind: &str, title: &str, text: &str) {
+        // todo add test for this
+        let params = [("sr", subreddit), ("kind", kind), ("title", title), ("text", text), ("extension", "json")];
+        let url = "https://oauth.reddit.com/api/submit";
+        let res = self
             .http_post(url, &params)
             .send();
 
