@@ -23,6 +23,7 @@ use std::io::Read;
 // todo settle on naming standard for all methods
 // todo separate into files based on api organization?
 // todo reduce string typing
+// todo update to the latest version of reqwest
 
 #[derive(Debug)]
 pub enum Error {
