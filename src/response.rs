@@ -1,5 +1,8 @@
+use RRAWResult;
+use error::Error;
+
 #[derive(Serialize, Deserialize, Debug)]
-struct Response {
+pub struct Response {
     json: ResponseInternal,
 }
 
@@ -12,20 +15,28 @@ enum ResponseInternal {
     },
     Success {
         errors: Vec<Vec<String>>,
-        data: ResponseInternalSuccessData,
+        data: ResponseData,
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ResponseInternalSuccessData {
+pub struct ResponseData {
     url: String,
-    drafts_count: String,
+    drafts_count: u8,
     id: String,
     name: String,
 }
 
+impl From<Response> for RRAWResult<ResponseData> {
+    fn from(response: Response) -> Self {
+        match response.json {
+            ResponseInternal::RateLimit { ratelimit, .. } => Err(Error::RateLimit(ratelimit)),
+            ResponseInternal::Success { data, .. } => Ok(data),
+        }
+    }
+}
+
 // TODO this has only been tested on the submit route, determine if this can be used other places
-// TODO write wrapper enum that determines if this is a success or failure
 
 #[cfg(test)]
 mod tests {
@@ -49,9 +60,9 @@ mod tests {
         }"#;
 
         let response : Response = serde_json::from_str(response_raw).unwrap();
+        let result : RRAWResult<ResponseData> = response.into();
 
-        // TODO assertions
-
+        assert_matches!(result.err().unwrap(), Error::RateLimit(_ratelimit));
     }
 
     #[test]
@@ -70,7 +81,9 @@ mod tests {
         }"#;
 
         let response : Response = serde_json::from_str(response_raw).unwrap();
+        let result : RRAWResult<ResponseData> = response.into();
+        let data = result.unwrap();
 
-        // TODO assertions
+        assert_eq!("t3_9h4p82", data.name);
     }
 }

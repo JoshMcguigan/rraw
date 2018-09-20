@@ -2,14 +2,19 @@ extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde_derive;
+#[cfg(test)] #[macro_use] extern crate matches;
 
 pub mod listing;
 use listing::Link;
 use listing::Listing;
 
 mod response;
+use response::Response;
+use response::ResponseData;
+
+mod error;
+pub use error::RRAWResult;
 
 use listing::Comment;
 use listing::CommentFullRepliesStructure;
@@ -18,30 +23,12 @@ use reqwest::header::{Authorization, Bearer, ContentType, UserAgent};
 use std::collections::HashMap;
 use reqwest::RequestBuilder;
 use serde::Serialize;
-use std::io::Read;
 
 // todo settle on naming standard for all methods
 // todo separate into files based on api organization?
 // todo reduce string typing
 // todo update to the latest version of reqwest
-
-#[derive(Debug)]
-pub enum Error {
-    Network(reqwest::Error),
-    Parse(serde_json::Error),
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(e: reqwest::Error) -> Self {
-        Error::Network(e)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Parse(e)
-    }
-}
+// todo make submit and reply functions return the same data type
 
 #[derive(Deserialize, Debug)]
 pub struct AuthData {
@@ -65,7 +52,7 @@ impl Client {
         reddit_client_id: &str,
         reddit_client_secret: &str,
         reddit_user_agent: &str,
-    ) -> Result<Self, Error> {
+    ) -> RRAWResult<Self> {
         match authorize(
             reddit_username,
             reddit_password,
@@ -88,7 +75,7 @@ impl Client {
         &self,
         subreddit: &str,
         limit: usize,
-    ) -> Result<Vec<Link>, Error> {
+    ) -> RRAWResult<Vec<Link>> {
         let container: Container<Listing<Container<Link>>> = self
             .http_get(&format!("https://oauth.reddit.com/r/{}/new?limit={}", subreddit, limit))
             .send()?
@@ -106,7 +93,7 @@ impl Client {
         &self,
         subreddit: &str,
         id: &str,
-    ) -> Result<Vec<Comment>, Error> {
+    ) -> RRAWResult<Vec<Comment>> {
         let json: serde_json::Value = self
             .http_get(&format!("https://oauth.reddit.com/r/{}/comments/{}?depth=100000&limit=1000000&showmore=false", subreddit, id))
             .send()?
@@ -118,7 +105,7 @@ impl Client {
         Ok(format_comments(comments))
     }
 
-    pub fn reply(&self, parent_id: &str, body: &str) -> Result<(), Error> {
+    pub fn reply(&self, parent_id: &str, body: &str) -> RRAWResult<()> {
         // todo add test for this
         let params = [("thing_id", parent_id), ("text", body)];
         let url = "https://oauth.reddit.com/api/comment";
@@ -129,19 +116,16 @@ impl Client {
         Ok(())
     }
 
-    pub fn submit(&self, subreddit: &str, kind: &str, title: &str, text: &str) -> Result<(), Error> {
+    pub fn submit(&self, subreddit: &str, kind: &str, title: &str, text: &str) -> RRAWResult<ResponseData> {
         // todo add test for this
         let params = [("sr", subreddit), ("kind", kind), ("title", title), ("text", text), ("api_type", "json")];
         let url = "https://oauth.reddit.com/api/submit";
-        let mut res = self
+        let res : Response = self
             .http_post(url, &params)
-            .send()?;
+            .send()?
+            .json()?;
 
-        let mut body = String::new();
-        res.read_to_string(&mut body);
-        println!("{}", body);
-
-        Ok(())
+        res.into()
     }
 
     fn http_get(&self, url: &str) -> RequestBuilder {
@@ -175,7 +159,7 @@ fn authorize(
     reddit_client_id: &str,
     reddit_client_secret: &str,
     reddit_user_agent: &str,
-) -> Result<AuthData, Error> {
+) -> RRAWResult<AuthData> {
     let mut map = HashMap::new();
     map.insert("grant_type", "password");
     map.insert("username", &reddit_username);
