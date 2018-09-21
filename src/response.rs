@@ -23,8 +23,8 @@ enum ResponseInternal {
 pub struct ResponseData {
     url: String,
     drafts_count: u8,
-    id: String,
-    name: String,
+    pub id: String,
+    pub name: String,
 }
 
 impl From<Response> for RRAWResult<ResponseData> {

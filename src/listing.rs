@@ -30,7 +30,7 @@ pub struct CommentFullRepliesStructure {
     pub id: String,
     pub body: String,
     #[serde(deserialize_with = "parse_listing")]
-    pub replies: Option<Container<Listing<Container<CommentFullRepliesStructure>>>>,
+    pub replies: Option<Container<Listing<Container<CommentFullRepliesStructure>>>>, // todo create a type alias for this
 }
 
 #[derive(Debug)]

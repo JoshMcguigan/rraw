@@ -3,6 +3,8 @@ extern crate dotenv;
 
 use std::time::SystemTime;
 use rraw::RRAWResult;
+use std::thread;
+use std::time;
 
 // NOTE: new accounts are only allowed to post once per 10 minutes, so these tests could fail if run repeatedly
 
@@ -40,16 +42,21 @@ fn test() -> RRAWResult<()> {
     let post_title = format!("Testing RRAW - {:?}", timestamp);
     let post_body = format!("Post body - {:?}", timestamp);
 
-    let _response = reddit_client.submit(subreddit, "self", &post_title, &post_body)?;
+    let response = reddit_client.submit(subreddit, "self", &post_title, &post_body)?;
     let mut links = reddit_client.new(subreddit, 1)?;
 
     let test_post = links.pop().unwrap();
 
     assert_eq!(test_post.title, post_title);
 
-//    for link in links.iter() {
-//        let _comments = reddit_client.comments(subreddit, &link.id)?;
-//    }
+    let comment_text = "This is a test comment.";
+    reddit_client.reply(&response.name, comment_text)?;
+
+    // todo add testing of comments route
+    //    let comments = reddit_client.comments(subreddit, &response.id)?;
+    //
+    //    assert_eq!(1, comments.len(), "Expected comment to be posted and returned");
+    //    assert_eq!(comment_text, comments[0].body);
 
     Ok(())
 }

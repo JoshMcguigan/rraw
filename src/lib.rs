@@ -29,6 +29,7 @@ use serde::Serialize;
 // todo reduce string typing
 // todo update to the latest version of reqwest
 // todo make submit and reply functions return the same data type
+// todo improve readme and docs
 
 #[derive(Deserialize, Debug)]
 pub struct AuthData {
@@ -94,6 +95,8 @@ impl Client {
         subreddit: &str,
         id: &str,
     ) -> RRAWResult<Vec<Comment>> {
+        // todo is there a better api endpoint I can use for this
+        // todo preferably one that uses the full id like the reply route
         let json: serde_json::Value = self
             .http_get(&format!("https://oauth.reddit.com/r/{}/comments/{}?depth=100000&limit=1000000&showmore=false", subreddit, id))
             .send()?
@@ -106,7 +109,6 @@ impl Client {
     }
 
     pub fn reply(&self, parent_id: &str, body: &str) -> RRAWResult<()> {
-        // todo add test for this
         let params = [("thing_id", parent_id), ("text", body)];
         let url = "https://oauth.reddit.com/api/comment";
         self
@@ -117,7 +119,6 @@ impl Client {
     }
 
     pub fn submit(&self, subreddit: &str, kind: &str, title: &str, text: &str) -> RRAWResult<ResponseData> {
-        // todo add test for this
         let params = [("sr", subreddit), ("kind", kind), ("title", title), ("text", text), ("api_type", "json")];
         let url = "https://oauth.reddit.com/api/submit";
         let res : Response = self
