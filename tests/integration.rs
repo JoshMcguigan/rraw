@@ -23,25 +23,6 @@ fn try_new_error() {
 }
 
 #[test]
-fn write_comment() -> RRAWResult<()> {
-    let reddit_client = test_client()?;
-
-    let timestamp = timestamp();
-    let comment_text = format!("This is a test comment - {:?}", timestamp);
-    reddit_client.reply("t3_9hlk2e", &comment_text)?;
-    thread::sleep(time::Duration::from_millis(15000));
-    let comments = reddit_client.comments("test", "9hlk2e")?;
-
-    for comment in comments {
-        if comment_text == comment.body {
-            return Ok(())
-        }
-    }
-
-    panic!("Comment not found")
-}
-
-#[test]
 fn test() -> RRAWResult<()> {
     let reddit_client = test_client()?;
 
@@ -58,16 +39,23 @@ fn test() -> RRAWResult<()> {
     assert_eq!(test_post.title, post_title);
 
     let comment_text = "This is a test comment.";
-    reddit_client.reply(&response.name, comment_text)?;
+    reddit_client.reply(&response, comment_text)?;
 
-    thread::sleep(time::Duration::from_millis(15000)); // todo improve this
+    for _ in 0..15 {
+        // attempt reading comments multiple times, to allow for delays within Reddit
+        thread::sleep(time::Duration::from_millis(1000));
 
-    let comments = reddit_client.comments(subreddit, &response.id)?;
+        let comments = reddit_client.comments(subreddit, &response)?;
 
-    assert_eq!(1, comments.len(), "Expected comment to be posted and returned");
-    assert_eq!(comment_text, comments[0].body);
+        if comments.len() > 0 {
+            assert_eq!(1, comments.len(), "Expected comment to be posted and returned");
+            assert_eq!(comment_text, comments[0].body);
 
-    Ok(())
+            return Ok(());
+        }
+    }
+
+    panic!("Failed to retrieve comment after multiple attempts");
 }
 
 fn test_client() -> RRAWResult<Client> {

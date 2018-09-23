@@ -16,6 +16,9 @@ use response::ResponseData;
 mod error;
 pub use error::RRAWResult;
 
+mod thing;
+use thing::Thing;
+
 use listing::Comment;
 use listing::CommentFullRepliesStructure;
 use listing::Container;
@@ -93,12 +96,10 @@ impl Client {
     pub fn comments(
         &self,
         subreddit: &str,
-        id: &str,
+        parent: &Thing,
     ) -> RRAWResult<Vec<Comment>> {
-        // todo is there a better api endpoint I can use for this
-        // todo preferably one that uses the full id like the reply route
         let json: serde_json::Value = self
-            .http_get(&format!("https://oauth.reddit.com/r/{}/comments/{}?depth=100000&limit=1000000&showmore=false", subreddit, id))
+            .http_get(&format!("https://oauth.reddit.com/r/{}/comments/{}?depth=100000&limit=1000000&showmore=false", subreddit, parent.id()))
             .send()?
             .json()?;
 
@@ -108,8 +109,8 @@ impl Client {
         Ok(format_comments(comments))
     }
 
-    pub fn reply(&self, parent_id: &str, body: &str) -> RRAWResult<()> {
-        let params = [("thing_id", parent_id), ("text", body)];
+    pub fn reply(&self, parent: &Thing, body: &str) -> RRAWResult<()> {
+        let params = [("thing_id", parent.name()), ("text", body)];
         let url = "https://oauth.reddit.com/api/comment";
         self
             .http_post(url, &params)

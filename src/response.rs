@@ -1,6 +1,8 @@
 use RRAWResult;
 use error::Error;
 
+use thing::Thing;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Response {
     json: ResponseInternal,
@@ -25,6 +27,16 @@ pub struct ResponseData {
     drafts_count: u8,
     pub id: String,
     pub name: String,
+}
+
+impl Thing for ResponseData {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 impl From<Response> for RRAWResult<ResponseData> {
