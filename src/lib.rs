@@ -29,7 +29,6 @@ use serde::Serialize;
 
 // todo settle on naming standard for all methods
 // todo separate into files based on api organization?
-// todo reduce string typing
 // todo update to the latest version of reqwest
 // todo make submit and reply functions return the same data type
 // todo improve readme and docs
